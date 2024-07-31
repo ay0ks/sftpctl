@@ -132,16 +132,39 @@ fn sftp_create_user(
         ));
     }
 
-    let result = Command::new("useradd")
-        .arg("-m")
+    let result = Command::new("groupadd")
+        .arg("-g")
+        .arg(user_group_id.clone().to_string())
+        .arg(user_name.clone().to_string())
+        .output()?;
+    
+    if result.status.success() {
+        println!(
+            "User group {} (gid: {}) created successfully!",
+            user_name, user_group_id
+        );
+    } else {
+        return Err(Error::new(
+            ErrorKind::Other,
+            String::from_utf8(result.stderr).expect("String conversion failed"),
+        ));
+    }
+
+    let mut command = Command::new("useradd");
+    command
         .arg("-u")
         .arg(user_id.clone().to_string())
         .arg("-g")
         .arg(user_group_id.clone().to_string())
         .arg("-d")
-        .arg(format!("/home/{user_name}"))
-        .arg("-p")
-        .arg(user_pass.clone().to_string())
+        .arg(format!("/home/{user_name}"));
+    if !user_pass.clone().is_empty() {
+        command
+            .arg("-p")
+            .arg(user_pass.clone().to_string());
+    }
+
+    let result = command
         .arg(user_name.clone().to_string())
         .output()?;
 
@@ -151,6 +174,78 @@ fn sftp_create_user(
             user_name, user_id, user_group_id
         );
     } else {
+        return Err(Error::new(
+            ErrorKind::Other,
+            String::from_utf8(result.stderr).expect("String conversion failed"),
+        ));
+    }
+
+    let result = Command::new("mkdir")
+        .arg("-p")
+        .arg(format!("/home/{user_name}"))
+        .output()?;
+
+    if !result.status.success() {
+        return Err(Error::new(
+            ErrorKind::Other,
+            String::from_utf8(result.stderr).expect("String conversion failed"),
+        ));
+    }
+
+    let result = Command::new("chmod")
+        .arg("0750")
+        .arg(format!("/home/{user_name}"))
+        .output()?;
+
+    if !result.status.success() {
+        return Err(Error::new(
+            ErrorKind::Other,
+            String::from_utf8(result.stderr).expect("String conversion failed"),
+        ));
+    }
+
+    let result = Command::new("chown")
+        .arg(format!("root:{user_name}"))
+        .arg(format!("/home/{user_name}"))
+        .output()?;
+
+    if !result.status.success() {
+        return Err(Error::new(
+            ErrorKind::Other,
+            String::from_utf8(result.stderr).expect("String conversion failed"),
+        ));
+    }
+
+    let result = Command::new("rm")
+        .arg("-rf")
+        .arg(format!("/home/{user_name}/.*"))
+        .output()?;
+
+    if !result.status.success() {
+        return Err(Error::new(
+            ErrorKind::Other,
+            String::from_utf8(result.stderr).expect("String conversion failed"),
+        ));
+    }
+
+    let result = Command::new("mkdir")
+        .arg("-p")
+        .arg(format!("/home/{user_name}/uploads"))
+        .output()?;
+
+    if !result.status.success() {
+        return Err(Error::new(
+            ErrorKind::Other,
+            String::from_utf8(result.stderr).expect("String conversion failed"),
+        ));
+    }
+
+    let result = Command::new("chown")
+        .arg(format!("{user_name}:{user_name}"))
+        .arg(format!("/home/{user_name}/uploads"))
+        .output()?;
+
+    if !result.status.success(){
         return Err(Error::new(
             ErrorKind::Other,
             String::from_utf8(result.stderr).expect("String conversion failed"),
@@ -167,6 +262,23 @@ fn sftp_delete_user(user_name: String, user_id: u32, user_group_id: u32) -> Resu
         return Err(Error::new(
             ErrorKind::NotFound,
             format!("User {user_name} doens't exist"),
+        ));
+    }
+
+    let result = Command::new("groupdel")
+        .arg("-r")
+        .arg(user_name.clone())
+        .output()?;
+
+    if result.status.success() {
+        println!(
+            "User {} (uid: {} gid: {}) deleted successfully!",
+            user_name, user_id, user_group_id
+        );
+    } else {
+        return Err(Error::new(
+            ErrorKind::Other,
+            String::from_utf8(result.stderr).expect("String conversion failed"),
         ));
     }
 
