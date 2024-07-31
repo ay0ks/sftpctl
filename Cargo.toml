@@ -1,9 +1,11 @@
 [package]
 name = "sftpctl"
-version = "0.1.0"
 authors = ["Dimitriy \"ay0ks\" <ay0o0ks000@gmail.com>"]
+description = "SFTP management tool"
+version = "0.1.0"
 repository = "https://github.com/ay0ks/sftpctl"
 edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.11", features = ["derive"] }
+libc = "0.2.155"
