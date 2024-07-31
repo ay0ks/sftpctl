@@ -114,6 +114,8 @@ fn sftp_entry(users: PathBuf) -> Result<()> {
         )?;
     }
 
+    sftp_start()?;
+
     Ok(())
 }
 
@@ -262,9 +264,9 @@ fn sftp_modify_user(
 }
 
 fn sftp_start() -> Result<()> {
-    let result = Command::new("systemctl")
-        .arg("start")
-        .arg("sshd")
+    let result = Command::new("sshd")
+        .arg("-D")
+        .arg("-e")
         .output()?;
 
     if result.status.success() {
@@ -280,26 +282,14 @@ fn sftp_start() -> Result<()> {
 }
 
 fn sftp_restart() -> Result<()> {
-    let result = Command::new("systemctl")
-        .arg("restart")
-        .arg("sshd")
-        .output()?;
-
-    if result.status.success() {
-        println!("OpenSSH server restarted successfully.");
-    } else {
-        return Err(Error::new(
-            ErrorKind::Other,
-            String::from_utf8(result.stderr).expect("String conversion failed"),
-        ));
-    }
+    sftp_stop()?;
+    sftp_start()?;
 
     Ok(())
 }
 
 fn sftp_stop() -> Result<()> {
-    let result = Command::new("systemctl")
-        .arg("stop")
+    let result = Command::new("killall")
         .arg("sshd")
         .output()?;
 
