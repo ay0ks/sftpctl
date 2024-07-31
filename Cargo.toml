@@ -4,6 +4,7 @@ authors = ["Dimitriy \"ay0ks\" <ay0o0ks000@gmail.com>"]
 description = "SFTP management tool"
 version = "0.1.0"
 repository = "https://github.com/ay0ks/sftpctl"
+license = "MIT"
 edition = "2021"
 
 [dependencies]
