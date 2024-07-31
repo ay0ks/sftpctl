@@ -114,8 +114,6 @@ fn sftp_entry(users: PathBuf) -> Result<()> {
         )?;
     }
 
-    sftp_start()?;
-
     Ok(())
 }
 
