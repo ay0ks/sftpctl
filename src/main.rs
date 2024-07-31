@@ -65,6 +65,9 @@ enum Commands {
         #[arg(short = 'P', long)]
         user_new_pass: Option<String>,
     },
+    Start,
+    Restart,
+    Stop,
 }
 
 fn sftp_entry(users: PathBuf) -> Result<()> {
@@ -74,6 +77,41 @@ fn sftp_entry(users: PathBuf) -> Result<()> {
             ErrorKind::NotFound,
             format!("Path {users_path:?} does not exist"),
         ));
+    }
+
+    let users_file = File::open(&users_path)?;
+    let users_reader = BufReader::new(users_file);
+
+    for user_line in users_reader.lines() {
+        let user_line = user_line?;
+        if user_line.trim().is_empty() {
+            continue;
+        }
+        let user_parts: Vec<&str> = user_line.split(':').collect();
+        let (user_name, user_pass, user_id, user_group_id) = (
+            user_parts.get(0).unwrap_or(&"").to_string(),
+            user_parts.get(1).map(|&s| s.to_string()),
+            user_parts.get(2).and_then(|&s| s.parse().ok()),
+            user_parts.get(3).and_then(|&s| s.parse().ok()),
+        );
+
+        println!("Processing user: {}", user_name);
+        if let Some(ref user_pass) = user_pass {
+            println!("  Password: {}", user_pass);
+        }
+        if let Some(ref user_id) = user_id {
+            println!("  UID: {}", user_id);
+        }
+        if let Some(ref user_group_id) = user_group_id {
+            println!("  GID: {}", user_group_id);
+        }
+
+        sftp_create_user(
+            user_name,
+            user_id.unwrap(),
+            user_group_id.unwrap(),
+            user_pass.unwrap(),
+        )?;
     }
 
     Ok(())
@@ -223,6 +261,61 @@ fn sftp_modify_user(
     Ok(())
 }
 
+fn sftp_start() -> Result<()> {
+    let result = Command::new("systemctl")
+        .arg("start")
+        .arg("sshd")
+        .output()?;
+
+    if result.status.success() {
+        println!("OpenSSH server started successfully.");
+    } else {
+        return Err(Error::new(
+            ErrorKind::Other,
+            String::from_utf8(result.stderr).expect("String conversion failed"),
+        ));
+    }
+
+    Ok(())
+}
+
+fn sftp_restart() -> Result<()> {
+    let result = Command::new("systemctl")
+        .arg("restart")
+        .arg("sshd")
+        .output()?;
+
+    if result.status.success() {
+        println!("OpenSSH server restarted successfully.");
+    } else {
+        return Err(Error::new(
+            ErrorKind::Other,
+            String::from_utf8(result.stderr).expect("String conversion failed"),
+        ));
+    }
+
+    Ok(())
+}
+
+fn sftp_stop() -> Result<()> {
+    let result = Command::new("systemctl")
+        .arg("stop")
+        .arg("sshd")
+        .output()?;
+
+    if result.status.success() {
+        println!("OpenSSH server stopped successfully.");
+    } else {
+        return Err(Error::new(
+            ErrorKind::Other,
+            String::from_utf8(result.stderr).expect("String conversion failed"),
+        ));
+    }
+
+    Ok(())
+}
+
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -256,5 +349,8 @@ fn main() -> Result<()> {
             user_new_group_id,
             user_new_pass,
         ),
+        Commands::Start => sftp_start(),
+        Commands::Restart => sftp_restart(),
+        Commands::Stop => sftp_stop(),
     }
 }
